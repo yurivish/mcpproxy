@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/yurivish/toolkit/assert"
 	"github.com/yurivish/toolkit/pubsub"
 )
 
@@ -33,13 +34,13 @@ func TestGetToolUI(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := getToolUI(tt.tool)
 			if tt.want == nil {
-				assertNil(t, got)
+				assert.Nil(t, got)
 			} else {
 				if got == nil {
 					t.Fatal("expected non-nil ui map")
 				}
 				for k, v := range tt.want {
-					assertEqual(t, got[k], v)
+					assert.Equal(t, got[k], v)
 				}
 			}
 		})
@@ -60,7 +61,7 @@ func TestGetToolResourceURI(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := getToolResourceURI(tt.tool)
-			assertEqual(t, got, tt.want)
+			assert.Equal(t, got, tt.want)
 		})
 	}
 }
@@ -81,7 +82,7 @@ func TestGetToolVisibility(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := getToolVisibility(tt.tool)
-			assertEqual(t, got, tt.want)
+			assert.Equal(t, got, tt.want)
 		})
 	}
 }
@@ -105,8 +106,8 @@ func TestSchemaAndExample(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			schema, example := schemaAndExample(tt.input)
-			assertEqual(t, schema, tt.wantSchema)
-			assertEqual(t, example, tt.wantExample)
+			assert.Equal(t, schema, tt.wantSchema)
+			assert.Equal(t, example, tt.wantExample)
 		})
 	}
 }
@@ -128,7 +129,7 @@ func TestSchemaAndExample_AllTypes(t *testing.T) {
 	}
 	schema, example := schemaAndExample(input)
 
-	assertNotEqual(t, schema, "")
+	assert.NotEqual(t, schema, "")
 
 	var ex map[string]any
 	if err := json.Unmarshal([]byte(example), &ex); err != nil {
@@ -136,15 +137,15 @@ func TestSchemaAndExample_AllTypes(t *testing.T) {
 	}
 
 	// String with description uses description as placeholder
-	assertEqual(t, ex["name"], "User name")
+	assert.Equal(t, ex["name"], "User name")
 	// String without description uses empty string
-	assertEqual(t, ex["label"], "")
+	assert.Equal(t, ex["label"], "")
 	// integer → 0 (JSON numbers are float64)
-	assertEqual[any](t, ex["count"], float64(0))
+	assert.Equal[any](t, ex["count"], float64(0))
 	// number → 0
-	assertEqual[any](t, ex["score"], float64(0))
+	assert.Equal[any](t, ex["score"], float64(0))
 	// boolean → false
-	assertEqual[any](t, ex["active"], false)
+	assert.Equal[any](t, ex["active"], false)
 	// array → []
 	if arr, ok := ex["tags"].([]any); !ok || len(arr) != 0 {
 		t.Errorf("array: expected [], got %v", ex["tags"])
@@ -154,7 +155,7 @@ func TestSchemaAndExample_AllTypes(t *testing.T) {
 		t.Errorf("object: expected {}, got %v", ex["config"])
 	}
 	// unknown type → ""
-	assertEqual(t, ex["other"], "")
+	assert.Equal(t, ex["other"], "")
 }
 
 // =============================================================================
@@ -166,7 +167,7 @@ func TestSchemaAndExample_AllTypes(t *testing.T) {
 func TestBuildToolInfos(t *testing.T) {
 	t.Run("nil_input", func(t *testing.T) {
 		infos := buildToolInfos(nil)
-		assertNil(t, infos)
+		assert.Nil(t, infos)
 	})
 
 	t.Run("populated", func(t *testing.T) {
@@ -186,12 +187,12 @@ func TestBuildToolInfos(t *testing.T) {
 			t.Fatalf("expected 1 ToolInfo, got %d", len(infos))
 		}
 		ti := infos[0]
-		assertEqual(t, ti.Name, "my-tool")
-		assertEqual(t, ti.Description, "Does stuff")
-		assertEqual(t, ti.ResourceURI, "ui://tool")
-		assertEqual(t, ti.Visibility, []string{"app"})
-		assertNotEqual(t, ti.SchemaJSON, "")
-		assertNotEqual(t, ti.ExampleJSON, "")
+		assert.Equal(t, ti.Name, "my-tool")
+		assert.Equal(t, ti.Description, "Does stuff")
+		assert.Equal(t, ti.ResourceURI, "ui://tool")
+		assert.Equal(t, ti.Visibility, []string{"app"})
+		assert.NotEqual(t, ti.SchemaJSON, "")
+		assert.NotEqual(t, ti.ExampleJSON, "")
 	})
 }
 
@@ -209,7 +210,7 @@ func TestResolveWatchPath_File(t *testing.T) {
 	f.Close()
 
 	path := resolveWatchPath([]string{f.Name()})
-	assertEqual(t, path, f.Name())
+	assert.Equal(t, path, f.Name())
 }
 
 // Directory returns empty string (not watchable).
@@ -221,13 +222,13 @@ func TestResolveWatchPath_Directory(t *testing.T) {
 	defer os.Remove(dir)
 
 	path := resolveWatchPath([]string{dir})
-	assertEqual(t, path, "")
+	assert.Equal(t, path, "")
 }
 
 // Non-existent path returns empty string.
 func TestResolveWatchPath_NonExistent(t *testing.T) {
 	path := resolveWatchPath([]string{"/nonexistent/path/binary"})
-	assertEqual(t, path, "")
+	assert.Equal(t, path, "")
 }
 
 // =============================================================================
@@ -260,7 +261,7 @@ func TestWatchBinary_DetectsChange(t *testing.T) {
 
 		select {
 		case op := <-ops:
-			assertEqual(t, op.kind, opRestart)
+			assert.Equal(t, op.kind, opRestart)
 			op.reply <- sessionResult{} // unblock watchBinary
 		case <-time.After(2 * time.Second):
 			t.Error("timeout waiting for restart op after file change")
@@ -321,7 +322,7 @@ func TestSessionProxy_NestedCallsDoNotDeadlock(t *testing.T) {
 
 		var got map[string]string
 		json.Unmarshal(result, &got)
-		assertEqual(t, got["tool"], "inner")
+		assert.Equal(t, got["tool"], "inner")
 	})
 }
 

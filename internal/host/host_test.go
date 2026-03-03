@@ -16,6 +16,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/yurivish/toolkit/assert"
 	"github.com/yurivish/toolkit/pubsub"
 )
 
@@ -170,7 +171,7 @@ func TestSSE(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	assertEqual(t, resp.Header.Get("Content-Type"), "text/event-stream")
+	assert.Equal(t, resp.Header.Get("Content-Type"), "text/event-stream")
 
 	// Send a message through the SSE channel
 	testMsg := jsonrpcNotification{
@@ -190,7 +191,7 @@ func TestSSE(t *testing.T) {
 			if err := json.Unmarshal([]byte(data), &msg); err != nil {
 				t.Fatalf("failed to parse SSE data: %v", err)
 			}
-			assertEqual(t, msg.Method, "test/notification")
+			assert.Equal(t, msg.Method, "test/notification")
 			return // success
 		}
 	}
@@ -227,11 +228,11 @@ func TestRPCSandboxProxyReady(t *testing.T) {
 		case data := <-vs.SSEChan:
 			var msg jsonrpcMessage
 			json.Unmarshal(data, &msg)
-			assertEqual(t, msg.Method, "ui/notifications/sandbox-resource-ready")
+			assert.Equal(t, msg.Method, "ui/notifications/sandbox-resource-ready")
 			// Check that html is in params
 			var params map[string]any
 			json.Unmarshal(msg.Params, &params)
-			assertEqual(t, params["html"], "<html>view content</html>")
+			assert.Equal(t, params["html"], "<html>view content</html>")
 		case <-time.After(time.Second):
 			t.Error("timeout waiting for SSE message")
 		}
@@ -265,10 +266,10 @@ func TestRPCInitializedSendsToolInput(t *testing.T) {
 		case data := <-vs.SSEChan:
 			var msg jsonrpcMessage
 			json.Unmarshal(data, &msg)
-			assertEqual(t, msg.Method, "ui/notifications/tool-input")
+			assert.Equal(t, msg.Method, "ui/notifications/tool-input")
 			var params map[string]any
 			json.Unmarshal(msg.Params, &params)
-			assertEqual(t, params["toolName"], "demo-tool")
+			assert.Equal(t, params["toolName"], "demo-tool")
 		case <-time.After(time.Second):
 			t.Error("timeout waiting for tool-input SSE message")
 		}
@@ -307,8 +308,8 @@ func TestRPCInitializedSendsToolResult(t *testing.T) {
 			}
 		}
 
-		assertEqual(t, methods[0], "ui/notifications/tool-input")
-		assertEqual(t, methods[1], "ui/notifications/tool-result")
+		assert.Equal(t, methods[0], "ui/notifications/tool-input")
+		assert.Equal(t, methods[1], "ui/notifications/tool-result")
 	})
 }
 
@@ -327,8 +328,8 @@ func TestRPCResourcesRead(t *testing.T) {
 		Params:  map[string]any{"uri": "ui://test/resource"},
 	})
 	msg := readJSONResponse(t, resp)
-	assertNil(t, msg.Error)
-	assertNotNil(t, msg.Result)
+	assert.Nil(t, msg.Error)
+	assert.NotNil(t, msg.Result)
 }
 
 // ui/request-display-mode returns inline (the only supported mode).
@@ -350,7 +351,7 @@ func TestRPCRequestDisplayMode(t *testing.T) {
 	var result map[string]any
 	json.Unmarshal(msg.Result, &result)
 	// Should return inline since that's the only mode we support
-	assertEqual(t, result["mode"], "inline")
+	assert.Equal(t, result["mode"], "inline")
 }
 
 // Response messages (no method, has id) are delivered to pending request channels.
@@ -381,7 +382,7 @@ func TestRPCResponseDelivery(t *testing.T) {
 		// The pending request should have received the response
 		select {
 		case data := <-ch:
-			assertNotNil(t, data)
+			assert.NotNil(t, data)
 		case <-time.After(time.Second):
 			t.Error("timeout waiting for response delivery")
 		}
@@ -402,7 +403,7 @@ func TestRPCUnknownMethod(t *testing.T) {
 		Method:  "nonexistent/method",
 	})
 	msg := readJSONResponse(t, resp)
-	assertNotNil(t, msg.Error)
+	assert.NotNil(t, msg.Error)
 }
 
 // =============================================================================
@@ -432,7 +433,7 @@ func TestSendToolResult(t *testing.T) {
 		case data := <-vs.SSEChan:
 			var msg jsonrpcMessage
 			json.Unmarshal(data, &msg)
-			assertEqual(t, msg.Method, "ui/notifications/tool-result")
+			assert.Equal(t, msg.Method, "ui/notifications/tool-result")
 		case <-time.After(time.Second):
 			t.Error("timeout")
 		}
@@ -481,8 +482,8 @@ func TestSendToolResultBeforeInitialized(t *testing.T) {
 			t.Fatal("timeout")
 		}
 	}
-	assertEqual(t, methods[0], "ui/notifications/tool-input")
-	assertEqual(t, methods[1], "ui/notifications/tool-result")
+	assert.Equal(t, methods[0], "ui/notifications/tool-input")
+	assert.Equal(t, methods[1], "ui/notifications/tool-result")
 }
 
 // =============================================================================
@@ -505,12 +506,12 @@ func TestExtractHTMLAndCSP_ValidWithCSP(t *testing.T) {
 		}]
 	}`)
 	html, csp := extractHTMLAndCSP(raw)
-	assertEqual(t, html, "<html>hello</html>")
+	assert.Equal(t, html, "<html>hello</html>")
 	if csp == nil {
 		t.Fatal("expected non-nil CSP")
 	}
-	assertEqual(t, csp.ConnectDomains, []string{"https://api.example.com"})
-	assertEqual(t, csp.ResourceDomains, []string{"https://cdn.example.com"})
+	assert.Equal(t, csp.ConnectDomains, []string{"https://api.example.com"})
+	assert.Equal(t, csp.ResourceDomains, []string{"https://cdn.example.com"})
 }
 
 // extractHTMLAndCSP returns HTML and nil CSP for simple cases.
@@ -528,7 +529,7 @@ func TestExtractHTMLAndCSP(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			html, csp := extractHTMLAndCSP(tt.raw)
-			assertEqual(t, html, tt.wantHTML)
+			assert.Equal(t, html, tt.wantHTML)
 			if tt.wantCSP && csp == nil {
 				t.Error("expected non-nil CSP")
 			}
@@ -578,7 +579,7 @@ func TestCreateToolCall_UnknownTool(t *testing.T) {
 	defer sandboxServer.Close()
 
 	_, err := hs.CreateToolCall("nonexistent", json.RawMessage(`{}`))
-	assertNotNil(t, err)
+	assert.NotNil(t, err)
 }
 
 // Non-UI tool (no ResourceURI) calls tool directly and returns Result.
@@ -591,8 +592,8 @@ func TestCreateToolCall_NonUITool(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertEqual(t, res.ViewURL, "")
-	assertNotNil(t, res.Result)
+	assert.Equal(t, res.ViewURL, "")
+	assert.NotNil(t, res.Result)
 }
 
 // Non-UI tool propagates CallTool error.
@@ -603,7 +604,7 @@ func TestCreateToolCall_NonUITool_Error(t *testing.T) {
 	defer sandboxServer.Close()
 
 	_, err := hs.CreateToolCall("fail-tool", json.RawMessage(`{}`))
-	assertNotNil(t, err)
+	assert.NotNil(t, err)
 }
 
 // UI tool creates a view, returns ViewURL, and delivers async tool result.
@@ -631,7 +632,7 @@ func TestCreateToolCall_UITool(t *testing.T) {
 	if vs == nil {
 		t.Fatal("view should have been created")
 	}
-	assertEqual(t, vs.HTML, "<html>ui</html>")
+	assert.Equal(t, vs.HTML, "<html>ui</html>")
 
 	// Wait for async tool result delivery
 	time.Sleep(50 * time.Millisecond)
@@ -649,7 +650,7 @@ func TestCreateToolCall_UITool_ReadResourceError(t *testing.T) {
 	defer sandboxServer.Close()
 
 	_, err := hs.CreateToolCall("ui-tool", json.RawMessage(`{}`))
-	assertNotNil(t, err)
+	assert.NotNil(t, err)
 }
 
 // UI tool with async CallTool failure delivers error result (isError: true) to view.
@@ -694,7 +695,7 @@ func TestNextID_Sequential(t *testing.T) {
 	ids := []string{vm.NextID(), vm.NextID(), vm.NextID()}
 	expected := []string{"v0", "v1", "v2"}
 	for i, id := range ids {
-		assertEqual(t, id, expected[i])
+		assert.Equal(t, id, expected[i])
 	}
 }
 
@@ -711,7 +712,7 @@ func TestTeardownAll(t *testing.T) {
 			case data := <-vs.SSEChan:
 				var msg jsonrpcMessage
 				json.Unmarshal(data, &msg)
-				assertEqual(t, msg.Method, "ui/resource-teardown")
+				assert.Equal(t, msg.Method, "ui/resource-teardown")
 			case <-time.After(time.Second):
 				t.Errorf("view %s: timeout waiting for teardown", vs.ID)
 			}
@@ -731,7 +732,7 @@ func TestSendSSE_ChannelFull(t *testing.T) {
 
 	// One more should be dropped without panic
 	err := vs.sendSSE(jsonrpcNotification{JSONRPC: "2.0", Method: "overflow"})
-	assertNil(t, err)
+	assert.Nil(t, err)
 }
 
 // =============================================================================
@@ -756,7 +757,7 @@ func TestOrigin(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &http.Request{Host: tt.host}
 			got := hs.origin(r, "9090")
-			assertEqual(t, got, tt.want)
+			assert.Equal(t, got, tt.want)
 		})
 	}
 }
@@ -860,7 +861,7 @@ func TestHandleResourcesRead_InvalidParams(t *testing.T) {
 		Method:  "resources/read",
 	})
 	msg := readJSONResponse(t, resp)
-	assertNotNil(t, msg.Error)
+	assert.NotNil(t, msg.Error)
 }
 
 // =============================================================================
@@ -918,13 +919,13 @@ func TestFullRPCLifecycle(t *testing.T) {
 		Method:  "ui/notifications/sandbox-proxy-ready",
 	})
 	resp.Body.Close()
-	assertEqual(t, resp.StatusCode, 204)
+	assert.Equal(t, resp.StatusCode, 204)
 
 	select {
 	case data := <-vs.SSEChan:
 		var msg jsonrpcMessage
 		json.Unmarshal(data, &msg)
-		assertEqual(t, msg.Method, "ui/notifications/sandbox-resource-ready")
+		assert.Equal(t, msg.Method, "ui/notifications/sandbox-resource-ready")
 	case <-time.After(deadline):
 		t.Fatal("timeout waiting for sandbox-resource-ready")
 	}
@@ -936,8 +937,8 @@ func TestFullRPCLifecycle(t *testing.T) {
 		Method:  "ui/initialize",
 	})
 	msg := readJSONResponse(t, resp)
-	assertNil(t, msg.Error)
-	assertNotNil(t, msg.Result)
+	assert.Nil(t, msg.Error)
+	assert.NotNil(t, msg.Result)
 
 	// 4. initialized → triggers tool-input (and maybe tool-result) via SSE
 	resp = postRPC(t, hostServer.URL, viewID, jsonrpcNotification{
@@ -945,13 +946,13 @@ func TestFullRPCLifecycle(t *testing.T) {
 		Method:  "ui/notifications/initialized",
 	})
 	resp.Body.Close()
-	assertEqual(t, resp.StatusCode, 204)
+	assert.Equal(t, resp.StatusCode, 204)
 
 	select {
 	case data := <-vs.SSEChan:
 		var msg jsonrpcMessage
 		json.Unmarshal(data, &msg)
-		assertEqual(t, msg.Method, "ui/notifications/tool-input")
+		assert.Equal(t, msg.Method, "ui/notifications/tool-input")
 	case <-time.After(deadline):
 		t.Fatal("timeout waiting for tool-input")
 	}
@@ -966,8 +967,8 @@ func TestFullRPCLifecycle(t *testing.T) {
 			Params:  map[string]any{"name": "count-words", "arguments": map[string]any{"text": "hello world"}},
 		})
 		msg := readJSONResponse(t, resp)
-		assertNil(t, msg.Error)
-		assertNotNil(t, msg.Result)
+		assert.Nil(t, msg.Error)
+		assert.NotNil(t, msg.Result)
 		close(done)
 	}()
 

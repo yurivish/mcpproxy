@@ -15,6 +15,8 @@ import (
 	"testing"
 	"testing/synctest"
 	"time"
+
+	"github.com/yurivish/toolkit/assert"
 )
 
 // drainSSE reads all queued SSE messages from a view state, returning them.
@@ -249,10 +251,10 @@ func TestSpec_Visibility(t *testing.T) {
 			msg := readJSONResponse(t, resp)
 
 			if tt.wantError {
-				assertNotNil(t, msg.Error)
+				assert.NotNil(t, msg.Error)
 				var errObj map[string]any
 				json.Unmarshal(msg.Error, &errObj)
-				assertNotNil(t, errObj["message"])
+				assert.NotNil(t, errObj["message"])
 			} else if msg.Error != nil {
 				if !tt.allowOtherErrors {
 					t.Fatalf("expected no error, got: %s", string(msg.Error))
@@ -331,12 +333,12 @@ func TestSpec_Sandbox_SendResourceReadyOnProxyReady(t *testing.T) {
 	if len(msgs) == 0 {
 		t.Fatal("MUST send sandbox-resource-ready after sandbox-proxy-ready")
 	}
-	assertEqual(t, msgs[0].Method, "ui/notifications/sandbox-resource-ready")
+	assert.Equal(t, msgs[0].Method, "ui/notifications/sandbox-resource-ready")
 	var params map[string]any
 	json.Unmarshal(msgs[0].Params, &params)
 	html, _ := params["html"].(string)
-	assertNotEqual(t, html, "")
-	assertEqual(t, html, vs.HTML)
+	assert.NotEqual(t, html, "")
+	assert.Equal(t, html, vs.HTML)
 }
 
 // Spec §4.7.6: "The Host MUST NOT send any request or notification to the View
@@ -383,7 +385,7 @@ func TestSpec_SizeChanged_AcceptedAsNotification(t *testing.T) {
 	resp.Body.Close()
 
 	// MUST accept size-changed notifications (204 = notification accepted)
-	assertEqual(t, resp.StatusCode, 204)
+	assert.Equal(t, resp.StatusCode, 204)
 }
 
 // =============================================================================
@@ -437,7 +439,7 @@ func TestSpec_DisplayMode_UnsupportedModeReturnsCurrentMode(t *testing.T) {
 
 	var result map[string]any
 	json.Unmarshal(msg.Result, &result)
-	assertEqual(t, result["mode"], "inline")
+	assert.Equal(t, result["mode"], "inline")
 }
 
 // =============================================================================
@@ -542,7 +544,7 @@ func TestSpec_ToolResult_SentWhenToolCompletes(t *testing.T) {
 		if m.Method == "ui/notifications/tool-result" {
 			found = true
 			// Verify the result content is forwarded
-			assertNotNil(t, m.Params)
+			assert.NotNil(t, m.Params)
 		}
 	}
 	if !found {
@@ -615,8 +617,8 @@ func TestSpec_Teardown_SentBeforeDestroy(t *testing.T) {
 		case data := <-vs.SSEChan:
 			var msg jsonrpcMessage
 			json.Unmarshal(data, &msg)
-			assertEqual(t, msg.Method, "ui/resource-teardown")
-			assertNotNil(t, msg.ID)
+			assert.Equal(t, msg.Method, "ui/resource-teardown")
+			assert.NotNil(t, msg.ID)
 		case <-time.After(time.Second):
 			t.Fatal("timeout waiting for teardown request")
 		}
@@ -643,8 +645,8 @@ func TestSpec_Teardown_IsRequest(t *testing.T) {
 		case data := <-vs.SSEChan:
 			var msg jsonrpcMessage
 			json.Unmarshal(data, &msg)
-			assertNotNil(t, msg.ID)
-			assertEqual(t, msg.Method, "ui/resource-teardown")
+			assert.NotNil(t, msg.ID)
+			assert.Equal(t, msg.Method, "ui/resource-teardown")
 		case <-time.After(time.Second):
 			t.Fatal("timeout")
 		}
@@ -688,7 +690,7 @@ func TestSpec_ReturnsResult(t *testing.T) {
 				Params:  tt.params,
 			})
 			msg := readJSONResponse(t, resp)
-			assertNotNil(t, msg.Result)
+			assert.NotNil(t, msg.Result)
 		})
 	}
 }
@@ -728,7 +730,7 @@ func TestSpec_Lifecycle_InitializedSetsState(t *testing.T) {
 	vs.ToolName = "test"
 	vs.ToolArgs = json.RawMessage(`{}`)
 
-	assertFalse(t, vs.Initialized)
+	assert.False(t, vs.Initialized)
 
 	resp := postRPC(t, hostServer.URL, "state", jsonrpcNotification{
 		JSONRPC: "2.0",
@@ -736,7 +738,7 @@ func TestSpec_Lifecycle_InitializedSetsState(t *testing.T) {
 	})
 	resp.Body.Close()
 
-	assertTrue(t, vs.Initialized)
+	assert.True(t, vs.Initialized)
 }
 
 // =============================================================================
@@ -773,7 +775,7 @@ func TestSpec_ToolsCall_ProxiedToServer(t *testing.T) {
 
 		select {
 		case name := <-calls:
-			assertEqual(t, name, "my-tool")
+			assert.Equal(t, name, "my-tool")
 		case <-time.After(time.Second):
 			t.Error("tools/call was not proxied to MCP server")
 		}
@@ -809,7 +811,7 @@ func TestSpec_ResourcesRead_ProxiedToServer(t *testing.T) {
 
 		select {
 		case uri := <-reads:
-			assertEqual(t, uri, "ui://my/resource")
+			assert.Equal(t, uri, "ui://my/resource")
 		case <-time.After(time.Second):
 			t.Error("resources/read was not proxied to MCP server")
 		}
@@ -833,7 +835,7 @@ func TestSpec_Ping_ReturnsEmptyResult(t *testing.T) {
 	if msg.Error != nil {
 		t.Fatalf("ping should not return error: %s", string(msg.Error))
 	}
-	assertNotNil(t, msg.Result)
+	assert.NotNil(t, msg.Result)
 	// Verify the response ID matches
 	idFloat, ok := msg.ID.(float64)
 	if !ok || int(idFloat) != 42 {
@@ -867,7 +869,7 @@ func TestSpec_Initialize(t *testing.T) {
 			}
 		}},
 		{"includes_host_capabilities", func(t *testing.T, r map[string]any) {
-			assertNotNil(t, r["hostCapabilities"])
+			assert.NotNil(t, r["hostCapabilities"])
 		}},
 		{"includes_host_info", func(t *testing.T, r map[string]any) {
 			hostInfo, ok := r["hostInfo"].(map[string]any)
@@ -882,7 +884,7 @@ func TestSpec_Initialize(t *testing.T) {
 			}
 		}},
 		{"no_legacy_capabilities_key", func(t *testing.T, r map[string]any) {
-			assertNil(t, r["capabilities"])
+			assert.Nil(t, r["capabilities"])
 		}},
 	}
 	for _, tt := range tests {
@@ -962,7 +964,7 @@ func TestSpec_ToolsCall_ResultInRPCResponse(t *testing.T) {
 
 	var result map[string]any
 	json.Unmarshal(msg.Result, &result)
-	assertNotNil(t, result["structuredContent"])
+	assert.NotNil(t, result["structuredContent"])
 }
 
 // =============================================================================
@@ -984,7 +986,7 @@ func TestSpec_ViewNotification_Returns204(t *testing.T) {
 		Params:  map[string]any{"level": "info", "data": "test log"},
 	})
 	resp.Body.Close()
-	assertEqual(t, resp.StatusCode, 204)
+	assert.Equal(t, resp.StatusCode, 204)
 }
 
 // =============================================================================
@@ -1006,7 +1008,7 @@ func TestSpec_ToolsCall_InvalidParams(t *testing.T) {
 		Method:  "tools/call",
 	})
 	msg := readJSONResponse(t, resp)
-	assertNotNil(t, msg.Error)
+	assert.NotNil(t, msg.Error)
 }
 
 // Spec: tools/call proxy error returns JSON-RPC error to view
@@ -1027,7 +1029,7 @@ func TestSpec_ToolsCall_ProxyError(t *testing.T) {
 		Params:  map[string]any{"name": "app-tool", "arguments": map[string]any{}},
 	})
 	msg := readJSONResponse(t, resp)
-	assertNotNil(t, msg.Error)
+	assert.NotNil(t, msg.Error)
 }
 
 // Spec: resources/read proxy error returns JSON-RPC error to view
@@ -1048,7 +1050,7 @@ func TestSpec_ResourcesRead_ProxyError(t *testing.T) {
 		Params:  map[string]any{"uri": "ui://missing"},
 	})
 	msg := readJSONResponse(t, resp)
-	assertNotNil(t, msg.Error)
+	assert.NotNil(t, msg.Error)
 }
 
 // JSON-RPC: response id must match request id
@@ -1069,7 +1071,7 @@ func TestSpec_JSONRPC_ResponseIdMatchesRequestId(t *testing.T) {
 		// JSON numbers get parsed as float64
 		expected := fmt.Sprintf("%v", id)
 		got := fmt.Sprintf("%v", msg.ID)
-		assertEqual(t, got, expected)
+		assert.Equal(t, got, expected)
 	}
 }
 
