@@ -285,7 +285,16 @@ func (hs *HostServer) handleViewSSE(w http.ResponseWriter, r *http.Request) {
 	for {
 		select {
 		case <-vs.ctx.Done():
-			return
+			// Drain remaining messages (e.g. teardown) before closing
+			for {
+				select {
+				case data := <-vs.SSEChan:
+					fmt.Fprintf(w, "data: %s\n\n", data)
+					flusher.Flush()
+				default:
+					return
+				}
+			}
 		case <-r.Context().Done():
 			return
 		case data := <-vs.SSEChan:

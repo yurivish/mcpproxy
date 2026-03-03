@@ -38,6 +38,10 @@ const (
 // ── Entry point ──
 
 func Run(ctx context.Context, args []string) error {
+	// Derive a cancellable context so background goroutines exit when Run returns.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	if len(args) == 0 {
 		return fmt.Errorf("usage: mcphost <server-command> [args...]\nExample: mcphost go run ./cmd/testserver")
 	}
@@ -63,8 +67,11 @@ func Run(ctx context.Context, args []string) error {
 	ready := make(chan struct{})
 	var once sync.Once
 
-	// Set up the view manager, host server, and app (don't depend on active session)
-	vm := NewViewManager(ctx)
+	// Set up the view manager with its own context so SSE handlers stay alive
+	// until teardown messages are delivered (not killed by the signal context).
+	vmCtx, vmCancel := context.WithCancel(context.Background())
+	defer vmCancel()
+	vm := NewViewManager(vmCtx)
 	hs := NewHostServer(vm, hostPort, sandboxPort, proxy, func() []ToolInfo {
 		if p := toolsPtr.Load(); p != nil {
 			return *p
@@ -132,8 +139,9 @@ func Run(ctx context.Context, args []string) error {
 	<-ctx.Done()
 	log.Println("Shutting down...")
 
-	// Send teardown to all active views
+	// Send teardown to all active views, then close SSE connections
 	vm.TeardownAll()
+	vmCancel()
 
 	// Gracefully shut down HTTP servers
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
